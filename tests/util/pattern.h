@@ -36,4 +36,6 @@ void util_fill_pattern(uint32_t format, enum util_fill_pattern pattern,
 		       void *planes[3], unsigned int width,
 		       unsigned int height, unsigned int stride);
 
+void util_smpte_c8_gamma(unsigned size, uint16_t *r, uint16_t *g, uint16_t *b);
+
 #endif /* UTIL_PATTERN_H */

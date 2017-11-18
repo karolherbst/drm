@@ -1228,6 +1228,30 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 			fprintf(stderr, "failed to set mode: %s\n", strerror(errno));
 			return;
 		}
+
+		if (pipes[0].fourcc == DRM_FORMAT_C8) {
+			/* the pattern relies on colors being set properly */
+			uint16_t r[256] = {0}, g[256] = {0}, b[256] = {0};
+
+			util_smpte_c8_gamma(256, r, g, b);
+			ret = drmModeCrtcSetGamma(
+					dev->fd, pipe->crtc->crtc->crtc_id,
+					256, r, g, b);
+			if (ret) {
+				fprintf(stderr, "failed to set gamma: %s\n", strerror(errno));
+				return;
+			}
+		} else {
+			/* gamma may be left over from a previous modeset */
+			uint16_t r[256], g[256], b[256];
+
+			for (j = 0; j < 256; j++)
+				r[j] = g[j] = b[j] = j << 8;
+			/* errors are probably ok */
+			drmModeCrtcSetGamma(
+					dev->fd, pipe->crtc->crtc->crtc_id,
+					256, r, g, b);
+		}
 	}
 }
 
