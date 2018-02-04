@@ -1186,7 +1186,7 @@ static void set_mode(struct device *dev, struct pipe_arg *pipes, unsigned int co
 
 	bo = bo_create(dev->fd, pipes[0].fourcc, dev->mode.width,
 		       dev->mode.height, handles, pitches, offsets,
-		       UTIL_PATTERN_SMPTE);
+		       UTIL_PATTERN_GRADIENT);
 	if (bo == NULL)
 		return;
 

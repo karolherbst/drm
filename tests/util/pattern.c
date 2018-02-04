@@ -75,6 +75,21 @@ static inline uint32_t shiftcolor(const struct util_color_component *comp,
 	return value << comp->offset;
 }
 
+static inline uint32_t shiftcolor10(const struct util_color_component *comp,
+				    uint32_t value)
+{
+	/* Shift down to remove unwanted low bits */
+	value = value >> (10 - comp->length);
+	/* Shift back up to where the value should be */
+	return value << comp->offset;
+}
+
+#define MAKE_RGBA10(rgb, r, g, b, a) \
+	(shiftcolor10(&(rgb)->red, (r)) | \
+	 shiftcolor10(&(rgb)->green, (g)) | \
+	 shiftcolor10(&(rgb)->blue, (b)) | \
+	 shiftcolor10(&(rgb)->alpha, (a)))
+
 #define MAKE_RGBA(rgb, r, g, b, a) \
 	(shiftcolor(&(rgb)->red, (r)) | \
 	 shiftcolor(&(rgb)->green, (g)) | \
@@ -915,6 +930,60 @@ static void fill_plain(const struct util_format_info *info, void *planes[3],
 	memset(planes[0], 0x77, stride * height);
 }
 
+static void fill_gradient_rgb32(const struct util_rgb_info *rgb,
+				void *mem,
+				unsigned int width, unsigned int height,
+				unsigned int stride)
+{
+	int i, j;
+
+	for (i = 0; i < height / 2; i++) {
+		uint32_t *row = mem;
+
+		for (j = 0; j < width/2; j++) {
+			row[2*j] = MAKE_RGBA10(rgb, j & 0x3ff, j & 0x3ff, j & 0x3ff, 0);
+			row[2*j+1] = MAKE_RGBA10(rgb, j & 0x3ff, j & 0x3ff, j & 0x3ff, 0);
+		}
+		mem += stride;
+	}
+
+	for (; i < height; i++) {
+		uint32_t *row = mem;
+
+		for (j = 0; j < width/2; j++) {
+			row[2*j] = MAKE_RGBA10(rgb, j & 0x3fc, j & 0x3fc, j & 0x3fc, 0);
+			row[2*j+1] = MAKE_RGBA10(rgb, j & 0x3fc, j & 0x3fc, j & 0x3fc, 0);
+		}
+		mem += stride;
+	}
+}
+
+static void fill_gradient(const struct util_format_info *info, void *planes[3],
+			  unsigned int width, unsigned int height,
+			  unsigned int stride)
+{
+	switch (info->format) {
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_RGBX1010102:
+	case DRM_FORMAT_BGRA1010102:
+	case DRM_FORMAT_BGRX1010102:
+		return fill_gradient_rgb32(&info->rgb, planes[0],
+					   width, height, stride);
+	}
+}
+
 /*
  * util_fill_pattern - Fill a buffer with a test pattern
  * @format: Pixel format
@@ -946,6 +1015,9 @@ void util_fill_pattern(uint32_t format, enum util_fill_pattern pattern,
 
 	case UTIL_PATTERN_PLAIN:
 		return fill_plain(info, planes, width, height, stride);
+
+	case UTIL_PATTERN_GRADIENT:
+		return fill_gradient(info, planes, width, height, stride);
 
 	default:
 		printf("Error: unsupported test pattern %u.\n", pattern);
