@@ -38,7 +38,7 @@ ext_libdrm_nouveau = declare_dependency(
 install_headers('nouveau.h', subdir : 'libdrm/nouveau')
 install_headers(
   'nvif/class.h', 'nvif/cl0080.h', 'nvif/cl9097.h', 'nvif/if0002.h',
-  'nvif/if0003.h', 'nvif/ioctl.h', 'nvif/unpack.h',
+  'nvif/if0003.h', 'nvif/ioctl.h', 'nvif/unpack.h', 'nvif/cl906f.h',
   subdir : 'libdrm/nouveau/nvif'
 )
 

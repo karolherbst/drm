@@ -41,6 +41,15 @@ void nouveau_object_sclass_put(struct nouveau_sclass **);
 int nouveau_object_mclass(struct nouveau_object *,
 			  const struct nouveau_mclass *);
 
+struct nouveau_ntfy;
+int nouveau_channel_ntfy_new(struct nouveau_object *, uint8_t event,
+			     struct nouveau_ntfy **);
+void nouveau_channel_ntfy_del(struct nouveau_ntfy **);
+int nouveau_channel_ntfy_get(struct nouveau_ntfy *);
+int nouveau_channel_ntfy_put(struct nouveau_ntfy *);
+/* blocks. true if notification arives */
+bool nouveau_channel_ntfy_wait(struct nouveau_ntfy *);
+
 struct nouveau_drm {
 	struct nouveau_object client;
 	int fd;

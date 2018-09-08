@@ -129,4 +129,13 @@ struct nvif_ioctl_mthd_v0 {
 	__u8  data[];		/* method data (class.h) */
 };
 
+struct nvif_notify_req_v0 {
+	/* nvif_ioctl_ntfy ... */
+	__u8  version;
+	__u8  reply;
+	__u8  pad02[5];
+	__u8  route;
+	__u64 token;
+};
+
 #endif

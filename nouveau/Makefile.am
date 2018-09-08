@@ -21,6 +21,7 @@ libdrm_nouveaunvifincludedir = ${includedir}/libdrm/nouveau/nvif
 libdrm_nouveaunvifinclude_HEADERS = nvif/class.h \
 				    nvif/cl0080.h \
 				    nvif/cl9097.h \
+				    nvif/cl906f.h \
 				    nvif/if0002.h \
 				    nvif/if0003.h \
 				    nvif/ioctl.h \

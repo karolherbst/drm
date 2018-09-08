@@ -31,6 +31,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+#include <poll.h>
 
 #include <xf86drm.h>
 #include <xf86atomic.h>
@@ -59,6 +62,12 @@ debug_init(char *args)
 	}
 }
 #endif
+
+struct nouveau_ntfy {
+	uint32_t index;
+	struct nouveau_object *chan;
+	FILE *fd;
+};
 
 static int
 nouveau_object_ioctl(struct nouveau_object *obj, void *data, uint32_t size)
@@ -347,6 +356,103 @@ nouveau_drm_new(int fd, struct nouveau_drm **pdrm)
 	drm->nvif = (drm->version >= 0x01000301);
 	drmFreeVersion(ver);
 	return 0;
+}
+
+int nouveau_channel_ntfy_new(struct nouveau_object *chan, uint8_t event,
+			     struct nouveau_ntfy **ntfy)
+{
+	struct nouveau_drm *drm = nouveau_drm(chan);
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_ntfy_new_v0 ntfy;
+		struct nvif_notify_req_v0 req;
+	} args;
+	int ret;
+
+	if (!drm->nvif)
+		return -ENOSYS;
+
+	if (!(*ntfy = malloc(sizeof(**ntfy))))
+		return -ENOMEM;
+
+	(*ntfy)->chan = chan;
+
+	args.ioctl.version = 0;
+	args.ioctl.type = NVIF_IOCTL_V0_NTFY_NEW;
+
+	args.ntfy.version = 0;
+	args.ntfy.event = event;
+
+	args.req.version = 0;
+	args.req.reply = 0;
+	args.req.route = 0;
+	args.req.token = (unsigned long)(void *)*ntfy;
+
+	ret = nouveau_object_ioctl(chan, &args, sizeof(args));
+	if (!ret)
+		(*ntfy)->index = args.ntfy.index;
+
+	return ret;
+}
+
+int nouveau_channel_ntfy_get(struct nouveau_ntfy *ntfy)
+{
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_ntfy_get_v0 ntfy;
+	} args;
+
+	args.ioctl.version = 0;
+	args.ioctl.type = NVIF_IOCTL_V0_NTFY_GET;
+	args.ntfy.version = 0;
+	args.ntfy.index = ntfy->index;
+
+	return nouveau_object_ioctl(ntfy->chan, &args, sizeof(args));
+}
+
+int nouveau_channel_ntfy_put(struct nouveau_ntfy *ntfy)
+{
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_ntfy_put_v0 ntfy;
+	} args;
+
+	args.ioctl.version = 0;
+	args.ioctl.type = NVIF_IOCTL_V0_NTFY_PUT;
+	args.ntfy.version = 0;
+	args.ntfy.index = ntfy->index;
+
+	return nouveau_object_ioctl(ntfy->chan, &args, sizeof(args));
+}
+
+void nouveau_channel_ntfy_del(struct nouveau_ntfy **ntfy)
+{
+	struct {
+		struct nvif_ioctl_v0 ioctl;
+		struct nvif_ioctl_ntfy_del_v0 ntfy;
+	} args;
+
+	args.ioctl.version = 0;
+	args.ioctl.type = NVIF_IOCTL_V0_NTFY_DEL;
+	args.ntfy.version = 0;
+	args.ntfy.index = (*ntfy)->index;
+
+	nouveau_object_ioctl((*ntfy)->chan, &args, sizeof(args));
+	free(*ntfy);
+	*ntfy = NULL;
+}
+
+bool nouveau_channel_ntfy_wait(struct nouveau_ntfy *ntfy)
+{
+	struct nouveau_drm *drm = nouveau_drm(ntfy->chan);
+	struct pollfd fds = { 0 };
+
+	fds.fd = drm->fd;
+	fds.events = POLLIN;
+
+	/* for now there is no information passed in, so we just check for
+	 * a successful read */
+	return poll(&fds, 1, 10) > 0;
 }
 
 /* this is the old libdrm's version of nouveau_device_wrap(), the symbol
